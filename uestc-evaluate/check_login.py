@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
 """Diagnose login failure - dump page content after login attempt."""
-import asyncio, os, sys
+import asyncio, os, sys, getpass
 from pathlib import Path
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 load_dotenv(Path(__file__).parent / ".env")
+
+def prompt_credentials():
+    student_id = os.getenv("UESTC_STUDENT_ID")
+    password = os.getenv("UESTC_PASSWORD")
+    if not student_id:
+        student_id = input("学号: ").strip()
+    if not password:
+        password = getpass.getpass("密码: ")
+    if not student_id or not password:
+        print("错误：学号和密码不能为空", file=sys.stderr)
+        sys.exit(1)
+    return student_id, password
 
 async def main():
     async with async_playwright() as p:
@@ -36,9 +48,10 @@ async def main():
                 print(f"Captcha div: style='{style}', computed display='{display}'")
 
             # Fill and submit
-            await page.fill("input#username", os.getenv("UESTC_STUDENT_ID"))
-            await page.fill("input#password", os.getenv("UESTC_PASSWORD"))
-            print(f"Filled: {os.getenv('UESTC_STUDENT_ID')} / {'*' * len(os.getenv('UESTC_PASSWORD', ''))}")
+            student_id, password = prompt_credentials()
+            await page.fill("input#username", student_id)
+            await page.fill("input#password", password)
+            print(f"Filled: {student_id} / {'*' * len(password)}")
             await page.click("a#login_submit")
             print("Clicked login...")
             await asyncio.sleep(5)
